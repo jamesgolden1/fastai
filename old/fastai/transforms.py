@@ -1,9 +1,10 @@
 from .imports import *
 from .layer_optimizer import *
 from enum import IntEnum
+import numpy as np
 
 def scale_min(im, targ, interpolation=cv2.INTER_AREA):
-    """ Scale the image so that the smallest axis is of size targ.
+    """ Scales the image so that the smallest axis is of size targ.
 
     Arguments:
         im (array): image
@@ -15,14 +16,14 @@ def scale_min(im, targ, interpolation=cv2.INTER_AREA):
     return cv2.resize(im, sz, interpolation=interpolation)
 
 def zoom_cv(x,z):
-    """ Zoom the center of image x by a factor of z+1 while retaining the original image size and proportion. """
+    '''zooms the center of image x, by a factor of z+1 while retaining the origal image size and proportion. '''
     if z==0: return x
     r,c,*_ = x.shape
     M = cv2.getRotationMatrix2D((c/2,r/2),0,z+1.)
     return cv2.warpAffine(x,M,(c,r))
 
 def stretch_cv(x,sr,sc,interpolation=cv2.INTER_AREA):
-    """ Stretches image x horizontally by sr+1, and vertically by sc+1 while retaining the original image size and proportion. """
+    '''stretches image x horizontally by sr+1, and vertically by sc+1 while retaining the origal image size and proportion.'''
     if sr==0 and sc==0: return x
     r,c,*_ = x.shape
     x = cv2.resize(x, None, fx=sr+1, fy=sc+1, interpolation=interpolation)
@@ -31,34 +32,35 @@ def stretch_cv(x,sr,sc,interpolation=cv2.INTER_AREA):
     return x[cr:r+cr, cc:c+cc]
 
 def dihedral(x, dih):
-    """ Perform any of 8 permutations of 90-degrees rotations or flips for image x. """
+    '''performs any of 8 90 rotations or flips for image x.
+    '''
     x = np.rot90(x, dih%4)
     return x if dih<4 else np.fliplr(x)
 
 def lighting(im, b, c):
-    """ Adjust image balance and contrast """
+    ''' adjusts image's balance and contrast'''
     if b==0 and c==1: return im
     mu = np.average(im)
     return np.clip((im-mu)*c+mu+b,0.,1.).astype(np.float32)
 
 def rotate_cv(im, deg, mode=cv2.BORDER_CONSTANT, interpolation=cv2.INTER_AREA):
-    """ Rotate an image by deg degrees
+    """ Rotates an image by deg degrees
 
     Arguments:
         deg (float): degree to rotate.
     """
     r,c,*_ = im.shape
-    M = cv2.getRotationMatrix2D((c//2,r//2),deg,1)
+    M = cv2.getRotationMatrix2D((c/2,r/2),deg,1)
     return cv2.warpAffine(im,M,(c,r), borderMode=mode, flags=cv2.WARP_FILL_OUTLIERS+interpolation)
 
 def no_crop(im, min_sz=None, interpolation=cv2.INTER_AREA):
-    """ Return a squared resized image """
+    """ Returns a squared resized image """
     r,c,*_ = im.shape
     if min_sz is None: min_sz = min(r,c)
     return cv2.resize(im, (min_sz, min_sz), interpolation=interpolation)
 
 def center_crop(im, min_sz=None):
-    """ Return a center crop of an image """
+    """ Returns a center crop of an image"""
     r,c,*_ = im.shape
     if min_sz is None: min_sz = min(r,c)
     start_r = math.ceil((r-min_sz)/2)
@@ -66,7 +68,7 @@ def center_crop(im, min_sz=None):
     return crop(im, start_r, start_c, min_sz)
 
 def googlenet_resize(im, targ, min_area_frac, min_aspect_ratio, max_aspect_ratio, flip_hw_p, interpolation=cv2.INTER_AREA):
-    """ Randomly crop an image with an aspect ratio and returns a squared resized image of size targ
+    """ Randomly crops an image with an aspect ratio and returns a squared resized image of size targ
     
     References:
     1. https://arxiv.org/pdf/1409.4842.pdf
@@ -92,12 +94,12 @@ def googlenet_resize(im, targ, min_area_frac, min_aspect_ratio, max_aspect_ratio
     return out
 
 def cutout(im, n_holes, length):
-    """ Cut out n_holes number of square holes of size length in image at random locations. Holes may overlap. """
+    ''' cuts out n_holes number of square holes of size length in image at random locations. holes may be overlapping. '''
     r,c,*_ = im.shape
     mask = np.ones((r, c), np.int32)
     for n in range(n_holes):
-        y = np.random.randint(0, r)
-        x = np.random.randint(0, c)
+        y = np.random.randint(r)
+        x = np.random.randint(c)
 
         y1 = int(np.clip(y - length / 2, 0, r))
         y2 = int(np.clip(y + length / 2, 0, r))
@@ -148,9 +150,13 @@ class Denormalize():
     """ De-normalizes an image, returning it to original format.
     """
     def __init__(self, m, s):
+        
+#        print(np.shape(m))
         self.m=np.array(m, dtype=np.float32)
         self.s=np.array(s, dtype=np.float32)
-    def __call__(self, x): return x*self.s+self.m
+    def __call__(self, x): 
+#        print(np.shape(x))
+        return x*self.s+self.m
 
 
 class Normalize():
@@ -173,10 +179,10 @@ class ChannelOrder():
     def __init__(self, tfm_y=TfmType.NO): self.tfm_y=tfm_y
 
     def __call__(self, x, y):
-        x = np.rollaxis(x, 2)
-        #if isinstance(y,np.ndarray) and (len(y.shape)==3):
-        if self.tfm_y==TfmType.PIXEL: y = np.rollaxis(y, 2)
-        elif self.tfm_y==TfmType.CLASS: y = y[...,0]
+#        x = np.rollaxis(x, 2)
+#        #if isinstance(y,np.ndarray) and (len(y.shape)==3):
+#        if self.tfm_y==TfmType.PIXEL: y = np.rollaxis(y, 2)
+#        elif self.tfm_y==TfmType.CLASS: y = y[...,0]
         return x,y
 
 
@@ -239,7 +245,8 @@ class Transform():
 
     def transform(self, x, y=None):
         x = self.do_transform(x,False)
-        return (x, self.do_transform(y,True)) if y is not None else x
+#         return (x, self.do_transform(y,True)) if y is not None else x
+        return (x, y) if y is not None else x
 
     @abstractmethod
     def do_transform(self, x, is_y): raise NotImplementedError
@@ -331,13 +338,7 @@ class RandomCrop(CoordTransform):
         start_c = np.floor(self.store.rand_c*(c-sz)).astype(int)
         return crop(x, start_r, start_c, sz)
 
-class CropNoop(CoordTransform):
-    """ Does not resize and does not scale """
-    def __init__(self, sz, tfm_y=TfmType.NO, sz_y=None):
-        super().__init__(tfm_y)
-    def do_transform(self, x, is_y):
-        return x
-    
+
 class NoCrop(CoordTransform):
     """  A transformation that resize to a square image without cropping.
 
@@ -442,15 +443,75 @@ class RandomDihedral(CoordTransform):
     Rotates images by random multiples of 90 degrees and/or reflection.
     Please reference D8(dihedral group of order eight), the group of all symmetries of the square.
     """
+#     def set_state(self):
+#         self.store.rot_times = random.randint(0,3)
+#         self.store.do_flip = random.random()<0.5
+
+#     def do_transform(self, x, is_y):
+#         x = np.rot90(x, self.store.rot_times)
+#         return np.fliplr(x).copy() if self.store.do_flip else x
+
     def set_state(self):
-        self.store.rot_times = random.randint(0,3)
-        self.store.do_flip = random.random()<0.5
+        self.store.rot_times = np.random.randint(0,3,3)
+        self.store.do_flip = np.random.random(3)<0.5
 
     def do_transform(self, x, is_y):
-        x = np.rot90(x, self.store.rot_times)
-        return np.fliplr(x).copy() if self.store.do_flip else x
+        x = np.rot90(x, self.store.rot_times[0], axes=(0,1))
+#         x = np.rot90(x, self.store.rot_times[1], axes=(0,2))
+#         x = np.rot90(x, self.store.rot_times[2], axes=(1,2))
+        
+        if self.store.do_flip[0]:
+            x = x[::-1,:,:]
+        if self.store.do_flip[1]:
+            x = x[:,::-1,:]
+        if self.store.do_flip[2]:
+            x = x[:,:,::-1]
+        return x
+    
+class RandomDihedralShrinkJitter(CoordTransform):
+    """
+    Rotates images by random multiples of 90 degrees and/or reflection.
+    Please reference D8(dihedral group of order eight), the group of all symmetries of the square.
+    """
+#     def set_state(self):
+#         self.store.rot_times = random.randint(0,3)
+#         self.store.do_flip = random.random()<0.5
 
+#     def do_transform(self, x, is_y):
+#         x = np.rot90(x, self.store.rot_times)
+#         return np.fliplr(x).copy() if self.store.do_flip else x
 
+    def set_state(self):
+        self.store.rot_times = np.random.randint(0,3,3)
+        self.store.do_flip = np.random.random(3)<0.5
+
+    def do_transform(self, x, is_y):
+        
+        frac_jitter = .5
+        volshape = [14,14,6]
+        frac_jitter = 1
+        cr = np.random.rand(1,3)
+        cr[:,0] = .5*frac_jitter*volshape[0]*(cr[:,0])# + .5*11
+        cr[:,1] = .5*frac_jitter*volshape[1]*(cr[:,1])# + .5*11
+        cr[:,2] = .5*frac_jitter*volshape[2]*(cr[:,2]) #+ .5*4
+
+        X1, X2 = int(np.floor(4+cr[:,0])), int(np.floor(20+cr[:,0]))
+        Y1, Y2 = int(np.floor(4+cr[:,1])), int(np.floor(20+cr[:,1]))
+        Z1, Z2 = int(np.floor(2+cr[:,2])), int(np.floor(10+cr[:,2]))
+        x = x[X1:X2, Y1:Y2, Z1:Z2]
+    
+        x = np.rot90(x, self.store.rot_times[0], axes=(0,1))
+#         x = np.rot90(x, self.store.rot_times[1], axes=(0,2))
+#         x = np.rot90(x, self.store.rot_times[2], axes=(1,2))
+        
+        if self.store.do_flip[0]:
+            x = x[::-1,:,:]
+        if self.store.do_flip[1]:
+            x = x[:,::-1,:]
+        if self.store.do_flip[2]:
+            x = x[:,:,::-1]
+        return x
+            
 class RandomFlip(CoordTransform):
     def __init__(self, tfm_y=TfmType.NO, p=0.5):
         super().__init__(tfm_y=tfm_y)
@@ -548,7 +609,7 @@ class RandomBlur(Transform):
         if np.any(self.blur_strengths < 0):
             raise ValueError("all blur_strengths must be > 0")
         self.probability = probability
-        self.store.apply_transform = False
+        self.apply_transform = False
 
     def set_state(self):
         self.store.apply_transform = random.random() < self.probability
@@ -556,27 +617,15 @@ class RandomBlur(Transform):
         self.store.kernel = (kernel_size, kernel_size)
 
     def do_transform(self, x, is_y):
-        return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.store.apply_transform else x
+        return cv2.GaussianBlur(src=x, ksize=self.store.kernel, sigmaX=0) if self.apply_transform else x
 
 class Cutout(Transform):
-    """ Randomly masks squares of size length on the image.
-    https://arxiv.org/pdf/1708.04552.pdf
-    
-    Arguments:
-    n_holes: number of squares
-    length: size of the square
-    p: probability to apply cutout
-    tfm_y: type of y transform
-    """
-    def __init__(self, n_holes, length, p=0.5, tfm_y=TfmType.NO):
+    def __init__(self, n_holes, length, tfm_y=TfmType.NO):
         super().__init__(tfm_y)
-        self.n_holes, self.length, self.p = n_holes, length, p
-
-    def set_state(self):
-        self.apply_transform = random.random() < self.p
+        self.n_holes,self.length = n_holes,length
 
     def do_transform(self, img, is_y):
-        return cutout(img, self.n_holes, self.length) if self.apply_transform else img
+        return cutout(img, self.n_holes, self.length)
 
 class GoogleNetResize(CoordTransform):
     """ Randomly crops an image with an aspect ratio and returns a squared resized image of size targ 
@@ -617,22 +666,78 @@ class GoogleNetResize(CoordTransform):
 
 
 def compose(im, y, fns):
-    """ Apply a collection of transformation functions :fns: to images """
+    """ apply a collection of transformation functions fns to images
+    """
     for fn in fns:
         #pdb.set_trace()
         im, y =fn(im, y)
-    return im if y is None else (im, y)
+    
+#    return im if y is None else (im, y)
 
+##
+    volsh = [1]
+    volsh.extend(list(np.shape(im)))    
+#     vol4d = np.zeros(volsh)
+#     vol4d[0,:,:,:] = y
+#     vol4d[0,:,:,:] = y
+    
+    volim = np.zeros(volsh)
+    volim[0,:,:,:] = im
+    
+    
+#    print(np.shape(y))
+    return im if y is None else (volim, y)
 
+##
+#    volsh = [1]
+#    volsh.extend(list(np.shape(y[::2,::2,::2])))    
+#    vol4d = np.zeros(volsh)
+##    vol4d[0,:,:,:] = y
+#    vol4d[0,:,:,:] = y[::2,::2,::2]
+#    
+#    volim = np.zeros(volsh)
+##    volim[0,:,:,:] = im
+#    volim[0,:,:,:] = im[::2,::2,::2]
+#    
+#    
+##    print(np.shape(y))
+#    return im if y is None else (volim, vol4d)
+##
+#    volsh = [1]
+#    volsh.extend(list(np.shape(y[::4,::4,::4])))    
+#    vol4d = np.zeros(volsh)
+##    vol4d[0,:,:,:] = y
+#    vol4d[0,:,:,:] = y[::4,::4,::4]
+#    
+#    volim = np.zeros(volsh)
+##    volim[0,:,:,:] = im
+#    volim[0,:,:,:] = im[::4,::4,::4]
+#    
+#    
+##    print(np.shape(y))
+#    return im if y is None else (volim, vol4d)
+##
+#    else:
+#        shTemp = list(np.shape(y)[0:1])
+#        shTemp.append(3)
+#        imTemp = np.zeros(shTemp)
+#        for sl in range(np.shape(y)[2]):
+#            imTemp[:,:,0:2] = y[:,:,sl]
+#            for fn in fns:
+#                #pdb.set_trace()
+#                im, y =fn(im, y)
+#                
+#                
+#        return im if y is None else (im, y)
 class CropType(IntEnum):
-    """ Type of image cropping. """
+    """ Type of image cropping.
+    """
     RANDOM = 1
     CENTER = 2
     NO = 3
     GOOGLENET = 4
-    NOOP = 5
 
-crop_fn_lu = {CropType.RANDOM: RandomCrop, CropType.CENTER: CenterCrop, CropType.NO: NoCrop, CropType.GOOGLENET: GoogleNetResize, CropType.NOOP: CropNoop}
+crop_fn_lu = {CropType.RANDOM: RandomCrop, CropType.CENTER: CenterCrop, CropType.NO: NoCrop, CropType.GOOGLENET: GoogleNetResize}
 
 class Transforms():
     def __init__(self, sz, tfms, normalizer, denorm, crop_type=CropType.CENTER,
@@ -708,7 +813,11 @@ transforms_basic    = [RandomRotate(10), RandomLighting(0.05, 0.05)]
 transforms_side_on  = transforms_basic + [RandomFlip()]
 transforms_top_down = transforms_basic + [RandomDihedral()]
 
-imagenet_stats = A([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# imagenet_stats = A(0.152*np.ones(24), 0.155*np.ones(24))
+
+imagenet_stats = A(192.9511108695099, 56.787623593724426)
+
+#imagenet_stats = A([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 """Statistics pertaining to image data from image net. mean and std of the images of each color channel"""
 inception_stats = A([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 inception_models = (inception_4, inceptionresnet_2)
@@ -731,7 +840,7 @@ def tfms_from_stats(stats, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=Cr
 def tfms_from_model(f_model, sz, aug_tfms=None, max_zoom=None, pad=0, crop_type=CropType.RANDOM,
                     tfm_y=None, sz_y=None, pad_mode=cv2.BORDER_REFLECT, norm_y=True, scale=None):
     """ Returns separate transformers of images for training and validation.
-    Transformers are constructed according to the image statistics given by the model. (See tfms_from_stats)
+    Transformers are constructed according to the image statistics given b y the model. (See tfms_from_stats)
 
     Arguments:
         f_model: model, pretrained or not pretrained
