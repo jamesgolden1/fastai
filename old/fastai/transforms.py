@@ -245,8 +245,8 @@ class Transform():
 
     def transform(self, x, y=None):
         x = self.do_transform(x,False)
-#         return (x, self.do_transform(y,True)) if y is not None else x
-        return (x, y) if y is not None else x
+        return (x, self.do_transform(y,True)) if y is not None else x
+#         return (x, y) if y is not None else x
 
     @abstractmethod
     def do_transform(self, x, is_y): raise NotImplementedError
@@ -686,8 +686,15 @@ def compose(im, y, fns):
     
     
 #    print(np.shape(y))
-    return im if y is None else (volim, y)
+#     return im if y is None else (volim, y)
 
+    if y.ndim>1:
+        voly =  np.zeros(volsh)
+
+        voly[0,:,:,:] = y
+    else: 
+        voly = y
+    return im if y is None else (volim, voly)
 ##
 #    volsh = [1]
 #    volsh.extend(list(np.shape(y[::2,::2,::2])))    
@@ -796,8 +803,8 @@ def image_gen(normalizer, denorm, sz, tfms=None, max_zoom=None, pad=0, crop_type
     elif not isinstance(tfms, collections.Iterable): tfms=[tfms]
     if sz_y is None: sz_y = sz
     if scale is None:
-        scale = [RandomScale(sz, max_zoom, tfm_y=tfm_y, sz_y=sz_y) if max_zoom is not None
-                 else Scale(sz, tfm_y, sz_y=sz_y)]
+        scale = []#RandomScale(sz, max_zoom, tfm_y=tfm_y, sz_y=sz_y) if max_zoom is not None
+#                  else Scale(sz, tfm_y, sz_y=sz_y)]
     elif not is_listy(scale): scale = [scale]
     if pad: scale.append(AddPadding(pad, mode=pad_mode))
     if crop_type!=CropType.GOOGLENET: tfms=scale+tfms
