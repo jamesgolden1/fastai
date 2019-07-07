@@ -51,6 +51,8 @@ class DataLoader(object):
     def __len__(self): return len(self.batch_sampler)
 
     def jag_stack(self, b):
+#         print(b[0].shape)
+#         print('\n--')
         if len(b[0].shape) not in (1,2): return np.stack(b)
         ml = max(len(o) for o in b)
         if min(len(o) for o in b)==ml: return np.stack(b)

@@ -274,7 +274,11 @@ def open_volume(fn):
             # for im_ind in range(np.shape(vol)[0]):
             #    vol[:,:,im_ind] = vol[:,:,im_ind].cvtColor(im, cv2.COLOR_BGR2RGB)
             #if im is None: raise OSError(f'File not recognized by opencv: {fn}')
-            return vol[0:32,0:32,0:32]#[0:64,0:64,0:32]#cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB) #cv2.cvtColor(vol)
+#             return vol[6:30,6:30,4:16]#[0:36:36,0:18]
+#             if np.shape(vol)[0]>32:
+#                 return vol[6:30,6:30,4:16]
+#             else:
+            return vol[0:36,0:36,0:36]#[0:64,0:64,0:32]#cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB) #cv2.cvtColor(vol)
         except Exception as e:
             raise OSError('Error handling image at: {}'.format(fn)) from e
 
