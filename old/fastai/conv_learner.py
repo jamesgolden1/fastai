@@ -155,10 +155,10 @@ class ConvLearner(Learner):
     def get_layer_groups(self):
         return self.models.get_layer_groups(self.precompute)
 
-    def summary(self):
+    def summary(self,rand_input=[torch.rand(1, 1, 16,16,8)]):
         precompute = self.precompute
         self.precompute = False
-        res = super().summary()
+        res = super().summary(rand_input)
         self.precompute = precompute
         return res
 

@@ -675,7 +675,14 @@ def compose(im, y, fns):
 #    return im if y is None else (im, y)
 
 ##
+
+    # Need different volumes!
+#     if len(np.shape(im))>3:
+#         volsh = [2]
+#     else:
     volsh = [1]
+        
+#     volsh = [2]
     volsh.extend(list(np.shape(im)))    
 #     vol4d = np.zeros(volsh)
 #     vol4d[0,:,:,:] = y
@@ -684,16 +691,38 @@ def compose(im, y, fns):
     volim = np.zeros(volsh)
     volim[0,:,:,:] = im
     
+    # Need different volumes!
+    if len(np.shape(y))>3:
+        volshy = [2]
+        
+        volshy.extend(list(np.shape(im))) 
+        voly = np.zeros(volshy)
+        voly = np.moveaxis(y,3,0)
+    else:
+        volshy = [1]
+        
+        volshy.extend(list(np.shape(im))) 
+        
+        voly = y
+        
+#     volshy.extend(list(np.shape(im)))    
     
 #    print(np.shape(y))
 #     return im if y is None else (volim, y)
 
-    if y.ndim>1:
-        voly =  np.zeros(volsh)
-
-        voly[0,:,:,:] = y
-    else: 
-        voly = y
+#     if y.ndim>1:
+#         voly = np.zeros(volshy)
+#         voly = np.moveaxis(y,3,0)
+# #         if len(np.shape(y))>3:
+# #             for jj in range(np.shape(y)[3]):
+# #                 voly[jj,:,:,:] = y[:,:,:,jj]
+# #         else:
+# #             voly[0,:,:,:] = y
+        
+        
+# #         voly[1,:,:,:] = y
+#     else: 
+#         voly = y
     return im if y is None else (volim, voly)
 ##
 #    volsh = [1]
